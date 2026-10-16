@@ -16,10 +16,10 @@ FreeRTOS → Zephyr table for the APIs that the lab uses.
 
 ## Build / flash
 
-From the repository root (same as `labs/01-blinky`):
+From the repository root (same as `labs_rtos/01-blinky`):
 
 ```bash
-west build -b $BOARD zephyr_lab/02-button-sem-queue -d build/z02
+west build -b $BOARD labs_rtos/02-button-sem-queue -d build/z02
 west flash -d build/z02
 ```
 

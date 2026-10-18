@@ -14,6 +14,21 @@ FreeRTOS → Zephyr table for the APIs that the lab uses.
 | `05-uart-protocol`       | `apk5.c` (APK5)        | UART RX IRQ state machine → msgq → link layer, shared UART    |
 | `06-washing-machine`     | `apk6.c` (APK6)        | 3 threads, 2 state machines, `k_thread_suspend/resume`        |
 
+### IPC labs (Zephyr only, beginner level)
+
+Labs 10 to 14 are small labs: one producer thread, one consumer thread and one
+IPC object each. LED0 toggles when the consumer gets data.
+[IPC.md](IPC.md) explains all the IPC objects and how to choose one, and the diagram
+[IPC_labs.excalidraw](IPC_labs.excalidraw) shows each lab step by step.
+
+| Zephyr lab    | Object               | Topic                                               |
+|---------------|----------------------|-----------------------------------------------------|
+| `10_k_queue`  | `k_fifo` / `k_lifo`  | pass pointers; FIFO order vs. LIFO order            |
+| `11_k_msgq`   | `k_msgq`             | pass copies of a small struct                       |
+| `12_k_mbox`   | `k_mbox`             | synchronous: the sender waits for the receiver      |
+| `13_zbus`     | zbus                 | publish/subscribe: one publisher, two observers     |
+| `14_k_pipe`   | `k_pipe`             | stream of bytes, read one byte at a time            |
+
 ## Build / flash
 
 From the repository root (same as `labs_rtos/01-blinky`):

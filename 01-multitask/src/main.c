@@ -59,9 +59,17 @@ static void leds_init(void)
 /* Periodic task */
 static void task1(void *p1, void *p2, void *p3)
 {
+   uint32_t counter=0;
+
 	while (1) {
 		printk("Task 1 is running....\n");
 		led_toggle(0);
+		counter++;
+		if (counter==10)
+		{
+			
+			return ;
+		}
 		k_msleep(1000);
 	}
 }
@@ -93,6 +101,8 @@ static void task4(void *p1, void *p2, void *p3)
 		printk("Task 4 is running....\n");
 		led_toggle(3);
 		k_msleep(700);
+
+		
 	}
 }
 
@@ -107,15 +117,23 @@ int main(void)
 	k_thread_create(&thread1, stack1, STACK_SIZE, task1, NULL, NULL, NULL,
 			TASK_PRIO, 0, K_NO_WAIT);
 	k_thread_name_set(&thread1, "T1");
+
 	k_thread_create(&thread2, stack2, STACK_SIZE, task2, NULL, NULL, NULL,
 			TASK_PRIO, 0, K_NO_WAIT);
 	k_thread_name_set(&thread2, "T2");
+
 	k_thread_create(&thread3, stack3, STACK_SIZE, task3, NULL, NULL, NULL,
 			TASK_PRIO, 0, K_NO_WAIT);
 	k_thread_name_set(&thread3, "T3");
+
 	k_thread_create(&thread4, stack4, STACK_SIZE, task4, NULL, NULL, NULL,
 			TASK_PRIO, 0, K_NO_WAIT);
 	k_thread_name_set(&thread4, "T4");
+
+
+	//join thread1 to wait for its completion before exiting main
+	k_thread_join(&thread1, K_FOREVER);
+    printk("Task 1 has completed. Exiting main...\n");
 
 	/* No vTaskStartScheduler(): returning from main() is allowed in Zephyr. */
 	return 0;

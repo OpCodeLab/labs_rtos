@@ -94,6 +94,17 @@ static void periodic_task(void *p1, void *p2, void *p3)
 		k_sleep(K_TIMEOUT_ABS_MS(next_wake));
 	}
 }
+/* Static threads: stack, thread object and parameters are all defined at
+ * build time. SYS_FOREVER_MS = created but not started; main() starts them
+ * once the LEDs are configured. */
+K_THREAD_DEFINE(t1, STACK_SIZE, periodic_task, (void *)&tasks[0], NULL, NULL,
+		T1_PRIO, 0, SYS_FOREVER_MS);
+K_THREAD_DEFINE(t2, STACK_SIZE, periodic_task, (void *)&tasks[1], NULL, NULL,
+		T2_PRIO, 0, SYS_FOREVER_MS);
+K_THREAD_DEFINE(t3, STACK_SIZE, periodic_task, (void *)&tasks[2], NULL, NULL,
+		T3_PRIO, 0, SYS_FOREVER_MS);
+K_THREAD_DEFINE(t4, STACK_SIZE, periodic_task, (void *)&tasks[3], NULL, NULL,
+		T4_PRIO, 0, SYS_FOREVER_MS);
 
 int main(void)
 {
@@ -105,12 +116,11 @@ int main(void)
 		}
 	}
 
-	for (int i = 0; i < ARRAY_SIZE(tasks); i++) {
-		k_thread_create(&threads[i], stacks[i], STACK_SIZE, periodic_task,
-				(void *)&tasks[i], NULL, NULL, tasks[i].prio, 0,
-				K_NO_WAIT);
-		k_thread_name_set(&threads[i], tasks[i].name);
-	}
+	k_thread_start(t1);
+	k_thread_start(t2);
+	k_thread_start(t3);
+	k_thread_start(t4);
+
 
 	return 0;
 }

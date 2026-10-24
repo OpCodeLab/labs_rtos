@@ -130,16 +130,19 @@ static const struct gpio_dt_spec leds[4] = {
 static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
 static struct gpio_callback button_cb;
 static const struct device *const uart_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
+static void link_layer(void *p1, void *p2, void *p3);
+static void system_task(void *p1, void *p2, void *p3);
+static void sensor_task(void *p1, void *p2, void *p3);
 
 K_MUTEX_DEFINE(uart_mutex);
 K_MSGQ_DEFINE(frame_msgq, sizeof(frame_t), 8, 1);   /* ISR       -> link_layer  */
 K_MSGQ_DEFINE(cmd_msgq, sizeof(frame_t), 4, 1);     /* link_layer -> system_task */
 K_SEM_DEFINE(sem_door, 0, 1);                       /* button ISR -> sensor_task */
 
-K_THREAD_STACK_DEFINE(link_stack, STACK_SIZE);
-K_THREAD_STACK_DEFINE(system_stack, STACK_SIZE);
-K_THREAD_STACK_DEFINE(sensor_stack, STACK_SIZE);
-static struct k_thread link_thread, system_thread, sensor_thread;
+K_THREAD_DEFINE(link_thread, STACK_SIZE, link_layer, NULL, NULL, NULL, LINK_PRIO, 0, 0);
+K_THREAD_DEFINE(system_thread, STACK_SIZE, system_task, NULL, NULL, NULL, SYSTEM_PRIO, 0, 0);
+K_THREAD_DEFINE(sensor_thread, STACK_SIZE, sensor_task, NULL, NULL, NULL, SENSOR_PRIO, 0, 0);
+
 
 /* Each state has a single writer: sys_state = system_task, sensor_state = sensor_task */
 static volatile sys_state_t    sys_state    = IDLE_STATE;
@@ -199,10 +202,13 @@ static void link_layer(void *p1, void *p2, void *p3)
 		case CMD_CFG_TEMP:
 		case CMD_CFG_SPIN:
 		case CMD_START_CYCLE:
-			if (sys_state == RUN_STATE) {   /* also while suspended by the door */
+			if (sys_state == RUN_STATE) 
+			{   /* also while suspended by the door */
 				LOG_ERROR("Cycle running: CMD 0x%02X refused", frame.cmd);
 				send_frame(frame.cmd | FRAME_RSP_FLAG, STATUS_BUSY);
-			} else if (k_msgq_put(&cmd_msgq, &frame, K_NO_WAIT) != 0) {
+			} 
+			else if (k_msgq_put(&cmd_msgq, &frame, K_NO_WAIT) != 0) 
+			{
 				send_frame(frame.cmd | FRAME_RSP_FLAG, STATUS_BUSY);
 			}
 			break;
@@ -223,19 +229,23 @@ static void system_task(void *p1, void *p2, void *p3)
 	frame_t  frame;
 	uint8_t  status;
 
-	while (1) {
-		switch (sys_state) {
+	while (1) 
+	{
+		switch (sys_state) 
+		{
 		/* ---- IDLE_STATE : wait for a complete configuration ---- */
 		case IDLE_STATE:
 			k_msgq_get(&cmd_msgq, &frame, K_FOREVER);
-			if (frame.cmd == CMD_START_CYCLE) {
+			if (frame.cmd == CMD_START_CYCLE) 
+			{
 				LOG_ERROR("Start refused: no configuration");
 				send_frame(frame.cmd | FRAME_RSP_FLAG, STATUS_NOT_CONFIG);
 				break;
 			}
 			status = apply_config(&cfg, &frame);
 			send_frame(frame.cmd | FRAME_RSP_FLAG, status);
-			if (cfg.mask == CFG_COMPLETE) {
+			if (cfg.mask == CFG_COMPLETE) 
+			{
 				led_set(LED_CONFIG, 1);
 				LOG_INFO(COLOR_GREEN, "Configured: %s, %uC, %u rpm -> READY_STATE",
 					 program_name[cfg.program], cfg.temp, cfg.spin * 100u);
@@ -246,13 +256,15 @@ static void system_task(void *p1, void *p2, void *p3)
 		/* ---- READY_STATE : configuration valid, wait for START ---- */
 		case READY_STATE:
 			k_msgq_get(&cmd_msgq, &frame, K_FOREVER);
-			if (frame.cmd != CMD_START_CYCLE) {
+			if (frame.cmd != CMD_START_CYCLE) 
+			{
 				/* a new parameter replaces the old one, the config stays complete */
 				status = apply_config(&cfg, &frame);
 				send_frame(frame.cmd | FRAME_RSP_FLAG, status);
 				break;
 			}
-			if (sensor_state == ERROR_STATE) {
+			if (sensor_state == ERROR_STATE) 
+			{
 				LOG_ERROR("Start refused: door open");
 				send_frame(frame.cmd | FRAME_RSP_FLAG, STATUS_DOOR_OPEN);
 				break;
@@ -329,19 +341,23 @@ static void run_cycle(void)
 	const uint32_t ticks_per_step = STEP_TIME_MS / TICK_MS;
 	frame_t frame;
 
-	for (uint8_t step = 1; step <= NB_STEPS; step++) {
+	for (uint8_t step = 1; step <= NB_STEPS; step++)
+	 {
 		send_frame(EVT_STEP, step);
 		LOG_INFO(COLOR_YELLOW, "Step %u: %s", step, step_name[step - 1]);
 
-		for (uint32_t tick = 1; tick <= ticks_per_step; tick++) {
+		for (uint32_t tick = 1; tick <= ticks_per_step; tick++) 
+		{
 			k_msleep(TICK_MS);
 
 			/* A command queued just before RUN started: refuse it */
-			while (k_msgq_get(&cmd_msgq, &frame, K_NO_WAIT) == 0) {
+			while (k_msgq_get(&cmd_msgq, &frame, K_NO_WAIT) == 0) 
+			{
 				send_frame(frame.cmd | FRAME_RSP_FLAG, STATUS_BUSY);
 			}
 
-			if ((tick % PROGRESS_EVERY) == 0) {
+			if ((tick % PROGRESS_EVERY) == 0)
+			 {
 				send_frame(EVT_PROGRESS, (uint8_t)(tick * 100u / ticks_per_step));
 				led_toggle(LED_RUN);
 			}
@@ -354,17 +370,20 @@ static void run_cycle(void)
 /* Wait for one debounced press of the button (edge confirmed after 30 ms) */
 static void wait_button_press(void)
 {
-	while (1) {
+	while (1) 
+	{
 		k_sem_take(&sem_door, K_FOREVER);
 		k_msleep(DEBOUNCE_MS);
-		if (gpio_pin_get_dt(&button) == 1) {
+		if (gpio_pin_get_dt(&button) == 1) 
+		{
 			break;
 		}
 		(void)k_sem_take(&sem_door, K_NO_WAIT);
 	}
 
 	/* wait for release, then drop the edges caused by the bounce */
-	while (gpio_pin_get_dt(&button) == 1) {
+	while (gpio_pin_get_dt(&button) == 1)
+	 {
 		k_msleep(10);
 	}
 	k_msleep(DEBOUNCE_MS);
@@ -377,7 +396,8 @@ static void sensor_task(void *p1, void *p2, void *p3)
 
 	while (1) {
 		wait_button_press();
-		switch (sensor_state) {
+		switch (sensor_state) 
+		{
 		/* ---- NO_ERROR_STATE : door closed, a press opens it ---- */
 		case NO_ERROR_STATE:
 			led_set(LED_DOOR, 1);
@@ -385,14 +405,16 @@ static void sensor_task(void *p1, void *p2, void *p3)
 			/* Take the UART mutex first: system_task is then sure not to own it,
 			 * so suspending it cannot block the UART for everybody else. */
 			k_mutex_lock(&uart_mutex, K_FOREVER);
-			if (sys_state == RUN_STATE) {
-				k_thread_suspend(&system_thread);
+			if (sys_state == RUN_STATE) 
+			{
+				k_thread_suspend(system_thread);
 				suspended = 1;
 			}
 			k_mutex_unlock(&uart_mutex);
 
 			send_frame(EVT_DOOR, 1);
-			if (suspended) {
+			if (suspended)
+			 {
 				send_frame(EVT_ERROR, ERR_DOOR_OPEN);
 				LOG_ERROR("Door open: cycle suspended -> ERROR_STATE");
 			}
@@ -404,10 +426,11 @@ static void sensor_task(void *p1, void *p2, void *p3)
 			led_set(LED_DOOR, 0);
 			sensor_state = NO_ERROR_STATE;
 			send_frame(EVT_DOOR, 0);
-			if (suspended) {
+			if (suspended)
+			 {
 				suspended = 0;
 				LOG_INFO(COLOR_GREEN, "Door closed: cycle resumed -> NO_ERROR_STATE");
-				k_thread_resume(&system_thread);
+				k_thread_resume(system_thread);
 			}
 			break;
 
@@ -425,7 +448,8 @@ static void send_frame(uint8_t cmd, uint8_t data)
 	const uint8_t tx[3] = { FRAME_SOF, cmd, data };
 
 	k_mutex_lock(&uart_mutex, K_FOREVER);
-	for (int i = 0; i < sizeof(tx); i++) {
+	for (int i = 0; i < sizeof(tx); i++)
+	 {
 		uart_poll_out(uart_dev, tx[i]);
 	}
 	k_mutex_unlock(&uart_mutex);
@@ -442,9 +466,11 @@ static void rx_byte(uint8_t byte)
 	}
 	last_byte_ms = now;
 
-	switch (rx_state) {
+	switch (rx_state) 
+	{
 	case WAIT_SOF:
-		if (byte == FRAME_SOF) {
+		if (byte == FRAME_SOF)
+		 {
 			rx_state = WAIT_CMD;
 		}
 		break;
@@ -472,37 +498,47 @@ static void uart_isr(const struct device *dev, void *user_data)
 {
 	uint8_t byte;
 
-	if (!uart_irq_update(dev)) {
+	if (!uart_irq_update(dev)) 
+	{
 		return;
 	}
 
-	if (uart_err_check(dev) != 0) {
+	if (uart_err_check(dev) != 0)
+	 {
 		rx_state = WAIT_SOF;
 	}
 
-	while (uart_irq_rx_ready(dev) && (uart_fifo_read(dev, &byte, 1) == 1)) {
+	while (uart_irq_rx_ready(dev) && (uart_fifo_read(dev, &byte, 1) == 1))
+	 {
 		rx_byte(byte);
 	}
 }
 
 
 /* User button = door sensor (FreeRTOS: HAL_GPIO_EXTI_Callback) */
-static void button_isr(const struct device *dev, struct gpio_callback *cb,
-		       uint32_t pins)
+static void button_isr(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
 	k_sem_give(&sem_door);
 }
 
 
+
+
+
+
+
 int main(void)
 {
-	if (!device_is_ready(uart_dev) || !gpio_is_ready_dt(&button)) {
+	if (!device_is_ready(uart_dev) || !gpio_is_ready_dt(&button))
+	 {
 		printk("UART or button not ready\n");
 		return 0;
 	}
 
-	for (int i = 0; i < ARRAY_SIZE(leds); i++) {
-		if (leds[i].port != NULL && gpio_is_ready_dt(&leds[i])) {
+	for (int i = 0; i < ARRAY_SIZE(leds); i++) 
+	{
+		if (leds[i].port != NULL && gpio_is_ready_dt(&leds[i]))
+		 {
 			gpio_pin_configure_dt(&leds[i], GPIO_OUTPUT_INACTIVE);
 		}
 	}
@@ -512,15 +548,7 @@ int main(void)
 	gpio_init_callback(&button_cb, button_isr, BIT(button.pin));
 	gpio_add_callback(button.port, &button_cb);
 
-	k_thread_create(&link_thread, link_stack, STACK_SIZE, link_layer,
-			NULL, NULL, NULL, LINK_PRIO, 0, K_NO_WAIT);
-	k_thread_name_set(&link_thread, "LinkLayer");
-	k_thread_create(&system_thread, system_stack, STACK_SIZE, system_task,
-			NULL, NULL, NULL, SYSTEM_PRIO, 0, K_NO_WAIT);
-	k_thread_name_set(&system_thread, "System");
-	k_thread_create(&sensor_thread, sensor_stack, STACK_SIZE, sensor_task,
-			NULL, NULL, NULL, SENSOR_PRIO, 0, K_NO_WAIT);
-	k_thread_name_set(&sensor_thread, "Sensor");
+
 
 	LOG_INFO(COLOR_WHITE, " RTOS LAB APK6 (washing machine, Zephyr) STARTING-----------------");
 

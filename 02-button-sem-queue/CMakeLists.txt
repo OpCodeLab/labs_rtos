@@ -8,3 +8,4 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(lab02_button_sem_queue)
 
 target_sources(app PRIVATE src/main.c)
+target_sources(app PRIVATE src/lib.c)

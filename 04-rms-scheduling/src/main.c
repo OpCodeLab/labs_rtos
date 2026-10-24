@@ -72,9 +72,12 @@ static struct k_thread threads[ARRAY_SIZE(tasks)];
  * preemption time is counted in the load. */
 static void load_function(uint32_t time_ms, int led)
 {
-	for (uint32_t i = 0; i < time_ms / 2; i++) {
+	for (uint32_t i = 0; i < time_ms / 2; i++) 
+	{
 		k_busy_wait(1000);
-		if (leds[led].port != NULL) {
+
+		if (leds[led].port != NULL) 
+		{
 			gpio_pin_toggle_dt(&leds[led]);
 		}
 	}

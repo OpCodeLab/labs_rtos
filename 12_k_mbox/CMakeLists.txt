@@ -7,4 +7,4 @@ set(BOARD_DEBUG_RUNNER openocd CACHE STRING "")
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(lab12_k_mbox)
 
-target_sources(app PRIVATE src/main.c)
+target_sources(app PRIVATE src/main2.c)

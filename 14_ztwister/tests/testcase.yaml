@@ -1,0 +1,8 @@
+# Twister reads this file to find the tests and where to run them.
+tests:
+  training.temp:
+    tags: training
+    platform_allow:
+      - native_sim
+    integration_platforms:
+      - native_sim

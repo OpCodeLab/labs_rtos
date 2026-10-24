@@ -1,0 +1,6 @@
+# Twister normally reads zephyr/tests/test_config.yaml, which the light
+# (sparse) Zephyr checkout of this workspace does not include.
+# Pass this one instead: west twister --test-config <this file> ...
+platforms:
+  override_default_platforms: false
+  increased_platform_scope: true

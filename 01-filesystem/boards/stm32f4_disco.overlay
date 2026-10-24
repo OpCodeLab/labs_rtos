@@ -1,0 +1,18 @@
+/*
+ * STM32F407VG: 1 MB flash, sectors 0-3 = 16 KB, 4 = 64 KB, 5-11 = 128 KB.
+ * The application uses the start of the flash (< 512 KB). The last 4 sectors
+ * (0x08080000 - 0x080FFFFF, 4 x 128 KB) hold the littlefs file system.
+ * The nucleo_g474re board already has a storage_partition in its dts.
+ */
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		storage_partition: partition@80000 {
+			label = "storage";
+			reg = <0x00080000 DT_SIZE_K(512)>;
+		};
+	};
+};

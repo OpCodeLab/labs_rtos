@@ -52,8 +52,8 @@ static void sender(void *p1, void *p2, void *p3)
 			.info = 100,			/* any value for the receiver */
 			.size = sizeof(text),		/* bytes to send */
 			.tx_data = text,		/* where the data is */
-			//.tx_target_thread = receiver_tid, /* ONLY the receiver */
-            .tx_target_thread = K_ANY, /* ANY thread (receiver or spy) */
+			.tx_target_thread = receiver_tid, /* ONLY the receiver */
+            //.tx_target_thread = K_ANY, /* ANY thread (receiver or spy) */
 		};
 		uint32_t start = k_uptime_get_32();
 
